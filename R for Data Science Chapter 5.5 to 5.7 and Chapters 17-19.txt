@@ -1,0 +1,189 @@
+5.5.2
+
+1. mutate(flights,
+continuous_dep_time = (dep_time %/% 100) * 60 + dep_time %% 100),
+   continuous_sched_dep_time = (sched_dep_time %/% 100) + (sched_dep_time - floor(sched_dep_time/100) * 100))
+
+2. I would expect to see the same values here, but they are actually different. dep_time is formatted as the number of minutes after midnight.
+The code below would fix it
+flights %>% 
+  mutate(dep_time = (dep_time %/% 100) * 60 + (dep_time %% 100),
+         sched_dep_time = (sched_dep_time %/% 100) * 60 + (sched_dep_time %% 100),
+         arr_time = (arr_time %/% 100) * 60 + (arr_time %% 100),
+         sched_arr_time = (sched_arr_time %/% 100) * 60 + (sched_arr_time %% 100)) %>%
+  transmute((arr_time - dep_time) %% (60*24) - air_time)
+
+  3. dep_delay should be the difference between dep_time and sched_dep_time for all flights that have a delay
+
+  4. filter(flights, min_rank(desc(dep_delay))<=10)
+flights %>% top_n(n = 10, wt = dep_delay)
+
+5. An error message, because 10 doesn't divide evenly by 3
+
+
+5.6.7
+
+
+2. not_cancelled <- filter(flights, !is.na(dep_delay), !is.na(arr_delay))
+not_cancelled %>%
+  group_by(dest) %>%
+  tally()
+not_cancelled %>%
+  group_by(tailnum) %>%
+  summarise(n = sum(distance))
+
+3. That doesn't count flights that arrived but did not depart. dep_delay is the most important column
+
+4.  flights %>%
+  mutate(dep_date = lubridate::make_datetime(year, month, day)) %>%
+  group_by(dep_date) %>%
+  summarise(cancelled = sum(is.na(dep_delay)), 
+            n = n(),
+            mean_dep_delay = mean(dep_delay,na.rm=TRUE),
+            mean_arr_delay = mean(arr_delay,na.rm=TRUE)) %>%
+    ggplot(aes(x= cancelled/n)) + 
+    geom_point(aes(y=mean_dep_delay), colour='blue', alpha=0.5) + 
+    geom_point(aes(y=mean_arr_delay), colour='red', alpha=0.5) + 
+    ylab('mean delay (minutes)')
+
+    Yes, typically the proportion of cancelled flights is somewhat related to the average delay
+
+    5. flights %>%
+    filter(arr_delay > 0) %>%
+    group_by(carrier) %>%
+    summarise(average_arr_delay = mean(arr_delay, na.rm=TRUE)) %>%
+    arrange(desc(average_arr_delay))
+
+    "OO" appears to have the worst delays. It is difficult to disentangle the effects of bad airports vs. bad carriers if carriers are nearly exclusive to a single airport.
+
+    6. This sorts by descending order of whatever is being counted. You could use it when you are looking at a scenario where the most common group is the most important
+
+
+    5.7.1
+1. Group by with summarise can organize what you are summarizing by a specified variable.
+   Group by with mutate can compute per group metrics
+   Group by with filter can keep the grouping while only counting certain values above or below a certain threshold
+
+2. N844MH
+
+3. flights %>%
+    ggplot(aes(x=factor(hour), fill=arr_delay>5 | is.na(arr_delay))) + geom_bar()
+
+    The late evening would be optimal
+
+4. flights %>%
+  group_by(dest) %>%
+  filter(!is.na(dep_delay)) %>%
+  summarise(tot_mins = sum(dep_delay[dep_delay > 0]))
+flights %>%
+  filter(!is.na(dep_delay)) %>%
+  group_by(tailnum, dest) %>%
+  summarise(m = mean(dep_delay > 0), n = n()) %>%
+  arrange(desc(m))
+
+  5. flights %>%
+  mutate(new_sched_dep_time = lubridate::make_datetime(year, month, day, hour, minute)) %>%
+  arrange(new_sched_dep_time) %>%
+  mutate(prev_time = lag(dep_delay)) %>%
+  # filter(between(dep_delay, 0, 300), between(prev_time, 0, 300)) %>% # play with this one
+  select(origin, new_sched_dep_time, dep_delay, prev_time) %>%
+  ggplot(aes(dep_delay, prev_time)) + geom_point(alpha = 1/10) +
+  geom_smooth()
+
+  6. flights %>%
+  group_by(dest) %>%
+  arrange(air_time) %>%
+  slice(1:5) %>%
+  select(tailnum, sched_dep_time, sched_arr_time, air_time) %>%
+  arrange(air_time)
+
+  Yes, there are some that can be found with the code above that appear suspiciously fast.
+
+  7. flights %>%
+  group_by(dest) %>%
+  filter(n_distinct(carrier) > 2) %>%
+  group_by(carrier) %>%
+  summarise(n = n_distinct(dest)) %>%
+  arrange(-n)
+
+  8. flights %>%
+    mutate(dep_date = lubridate::make_datetime(year, month, day)) %>%
+    group_by(tailnum) %>%
+    arrange(dep_date) %>%
+    filter(!cumany(arr_delay>60)) %>%
+    tally(sort = TRUE)
+
+  19.3.1
+
+  1. f1 is determining whether a string has "nchar". A better name could be has_nchar
+   f2 is dropping the last value of the vector if the vector is greater than 1. A better name could be drop_last
+   f3 is pasting a value of y for every value of x - one name could be add_y
+
+2. dratValue <- mtcars[mtcars$mpg>21 & mtcars$cyl==6,"drat"]
+value_of_drat could be a different name here which uses snake case and will allow autocomplete to show other members of the family (assuming "value" was used in other locations)
+
+3. rnorm and MASS::mvrnorm have different values within them - to make them more consistent, we could standardize the naming conventions
+
+4. norm_r and norm_d would be better because autocomplete would allow us to see all possibilities when "norm" was first typed. 
+rnorm and dnorm would be better since they are functioning by the action which they perform.
+
+
+
+19.4.4
+
+1. 'if' tests a single condition while 'ifelse' tests each element
+  
+
+2. greet <- function(time = lubridate::now()) {
+  hr <- lubridate::hour(time)
+if (hr < 12) {
+    print("good morning")
+  } else if (hr < 17) {
+    print("good afternoon")
+  } else {
+    print("good evening")
+  }
+}
+
+3. fizzbuzz <- function(x) {
+  stopifnot(length(x) == 1)
+  stopifnot(is.numeric(x))
+  # this could be made more efficient by minimizing the
+  # number of tests
+  if (!(x %% 3) && !(x %% 5)) {
+    "fizzbuzz"
+  } else if (!(x %% 3)) {
+    "fizz"
+  } else if (!(x %% 5)) {
+    "buzz"
+  } else {
+    x
+  }
+}
+fizzbuzz(6)
+fizzbuzz(10)
+fizzbuzz(15)
+fizzbuzz(2)
+
+4. if (temp <= 0) {
+  "freezing"
+} else if (temp <= 10) {
+  "cold"
+} else if (temp <= 20) {
+  "cool"
+} else if (temp <= 30) {
+  "warm"
+} else {
+  "hot"
+}
+
+temp <- seq(-10, 50, by = 5)
+cut(temp, c(-Inf, 0, 10, 20, 30, Inf), right = TRUE,
+    labels = c("freezing", "cold", "cool", "warm", "hot"))
+
+The chief advantage of "cut" here is that it works on vectors (if only works on a single value)
+
+5. It will return the nth argument from your list
+
+6. It returns "ab" for a or b, and then "cd" for c or d. If x is e, it would return a null value
+
